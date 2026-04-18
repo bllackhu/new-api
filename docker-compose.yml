@@ -26,8 +26,8 @@ services:
       - ./logs:/app/logs
     environment:
       - SQL_DSN=postgresql://root:u0HjoW0z9uHzHu84EFrM7OcKZthscsNi@koooyooo-newapi-postgres:5432/new-api # ⚠️ IMPORTANT: Change the password in production!
-#      - SQL_DSN=root:123456qwerty@tcp(koooyooo-newapi-mysql:3306)/new-api  # Point to the mysql service, uncomment if using MySQL
-      - REDIS_CONN_STRING=redis://:123456qwerty@koooyooo-newapi-redis:6379 # ⚠️ IMPORTANT: Change the password in production! (must match koooyooo-newapi-redis requirepass)
+#      - SQL_DSN=root:e1e74f28@tcp(koooyooo-newapi-mysql:3306)/new-api  # Point to the mysql service, uncomment if using MySQL
+      - REDIS_CONN_STRING=redis://:e1e74f28@koooyooo-newapi-redis:6379 # ⚠️ IMPORTANT: Change the password in production! (must match koooyooo-newapi-redis requirepass)
       - TZ=Asia/Shanghai
       - ERROR_LOG_ENABLED=true # 是否启用错误日志记录 (Whether to enable error log recording)
       - BATCH_UPDATE_ENABLED=true  # 是否启用批量更新 (Whether to enable batch update)
@@ -55,7 +55,7 @@ services:
     image: redis:latest
     container_name: koooyooo-newapi-redis
     restart: always
-    command: ["redis-server", "--requirepass", "123456qwerty"]  # ⚠️ IMPORTANT: Change this password in production!
+    command: ["redis-server", "--requirepass", "e1e74f28"]  # ⚠️ IMPORTANT: Change this password in production!
     networks:
       - koooyooo-newapi-network
 
