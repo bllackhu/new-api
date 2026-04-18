@@ -24,7 +24,8 @@ ENV GOEXPERIMENT=greenteagc
 
 # use direct mode to download go modules, bypassing the proxy
 ENV GOPROXY=direct
-ENV GOSUMDB=off   # optional, to skip checksum verification
+# optional, to skip checksum verification
+ENV GOSUMDB=off   
 
 
 WORKDIR /build
