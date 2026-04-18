@@ -30,6 +30,9 @@ ENV GOSUMDB=off
 
 WORKDIR /build
 
+# GOPROXY=direct clones modules with git; golang:alpine does not ship git by default.
+RUN apk add --no-cache git ca-certificates
+
 ADD go.mod go.sum ./
 RUN go mod download
 
