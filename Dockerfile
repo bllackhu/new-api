@@ -1,12 +1,13 @@
-# Node runs Vite so NODE_OPTIONS heap cap applies. Bun installs deps from bun.lock (same as local).
-FROM node:22-bookworm-slim AS builder
+# Bun installs from bun.lock. Node (Debian package) runs Vite so NODE_OPTIONS heap cap applies.
+# TLS timeouts to docker.io are an infra/mirror issue, not "wrong tag". To use a mirror:
+#   docker buildx build --build-arg FRONTEND_BASE=your.mirror/oven/bun:1@sha256:0733e50325078969732ebe3b15ce4c4be5082f18c4ac1a0f0ca4839c2e4e42a7 ...
+ARG FRONTEND_BASE=oven/bun:1@sha256:0733e50325078969732ebe3b15ce4c4be5082f18c4ac1a0f0ca4839c2e4e42a7
+FROM ${FRONTEND_BASE} AS builder
 
 WORKDIR /build
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl unzip \
-  && rm -rf /var/lib/apt/lists/* \
-  && curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
+  && apt-get install -y --no-install-recommends ca-certificates nodejs npm \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY web/package.json .
 COPY web/bun.lock .
