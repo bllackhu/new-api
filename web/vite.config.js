@@ -82,7 +82,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-core': ['react', 'react-dom', 'react-router-dom'],
-          'semi-ui': ['@douyinfe/semi-icons', '@douyinfe/semi-ui'],
           tools: ['axios', 'history', 'marked'],
           'react-components': [
             'react-dropzone',
@@ -91,28 +90,31 @@ export default defineConfig({
             'react-toastify',
             'react-turnstile',
           ],
-          i18n: [
-            'i18next',
-            'react-i18next',
-            'i18next-browser-languagedetector',
-          ],
           visactor: [
             '@visactor/react-vchart',
             '@visactor/vchart',
             '@visactor/vchart-semi-theme',
           ],
-          mermaid: ['mermaid'],
-          antd: ['antd'],
-          'lobe-icons': ['@lobehub/icons'],
+          // Semi foundation's MarkdownRender uses @mdx-js/mdx + remark-gfm; @lobehub/icons
+          // pulls @lobehub/ui (MDX). Splitting those into separate manualChunks caused Rollup
+          // circular chunks and "Cannot access X before initialization" in production.
           markdown: [
+            '@douyinfe/semi-icons',
+            '@douyinfe/semi-ui',
             'react-markdown',
             'remark-gfm',
             'remark-math',
             'remark-breaks',
             'rehype-highlight',
             'rehype-katex',
+            'mermaid',
+            'katex',
+            'i18next',
+            'react-i18next',
+            'i18next-browser-languagedetector',
+            '@lobehub/icons',
+            'antd',
           ],
-          katex: ['katex'],
           icons: ['react-icons', 'lucide-react'],
         },
       },
