@@ -11,20 +11,23 @@ RUN apt-get update \
 
 COPY web/package.json .
 COPY web/bun.lock .
-RUN bun install --frozen-lockfile
+# Image Bun (e.g. 1.3.x) may resolve slightly differently than your dev machine; --frozen-lockfile then fails.
+# Re-run `bun install` locally, commit bun.lock, then you can switch back to `bun install --frozen-lockfile` if desired.
+RUN bun install
 COPY ./web .
 COPY ./VERSION .
 
-# Frontend build is memory-heavy (~18k modules). Prefer >= 6–8 GB RAM for the build container.
-#   docker buildx build --build-arg NODE_MEMORY_MB=3072 ...
-ARG NODE_MEMORY_MB=2048
+# Frontend build is memory-heavy (~18k modules). 2048 MB heap is too small (V8 OOM during transform).
+# Give the BuildKit container >= ~6–8 GB RAM; raise heap if you have headroom:
+#   docker buildx build --build-arg NODE_MEMORY_MB=8192 ...
+ARG NODE_MEMORY_MB=4096
 ENV DISABLE_CODE_INSPECTOR=true \
     ROLLUP_MAX_PARALLEL=1 \
     NODE_OPTIONS="--max-old-space-size=${NODE_MEMORY_MB}"
 
-# Invoke Vite with Node (not `bun run build`) so V8 respects --max-old-space-size.
+# Pass heap limit on the node binary as well (belt-and-suspenders vs NODE_OPTIONS).
 RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) \
-  node ./node_modules/vite/bin/vite.js build
+  node --max-old-space-size=${NODE_MEMORY_MB} ./node_modules/vite/bin/vite.js build
 
 FROM golang:1.26.1-alpine@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS builder2
 ENV GO111MODULE=on CGO_ENABLED=0
