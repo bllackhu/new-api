@@ -16,11 +16,16 @@ ARG TARGETARCH
 ENV GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64}
 ENV GOEXPERIMENT=greenteagc
 
-# Default mirrors work when proxy.golang.org is slow or unreachable (e.g. some CN / DNS setups).
-# Override: docker buildx build --build-arg GOPROXY=https://proxy.golang.org,direct ...
-ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
-ARG GOSUMDB=sum.golang.google.cn
-ENV GOPROXY=${GOPROXY} GOSUMDB=${GOSUMDB}
+# # Default mirrors work when proxy.golang.org is slow or unreachable (e.g. some CN / DNS setups).
+# # Override: docker buildx build --build-arg GOPROXY=https://proxy.golang.org,direct ...
+# ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+# ARG GOSUMDB=sum.golang.google.cn
+# ENV GOPROXY=${GOPROXY} GOSUMDB=${GOSUMDB}
+
+# use direct mode to download go modules, bypassing the proxy
+ENV GOPROXY=direct
+ENV GOSUMDB=off   # optional, to skip checksum verification
+
 
 WORKDIR /build
 
