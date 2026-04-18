@@ -74,9 +74,11 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
+    // Avoid gzip-size pass over every chunk (saves RAM on huge SPAs).
+    reportCompressedSize: false,
     rollupOptions: {
       // Lower peak memory during large SPA builds (default Rollup parallelism can OOM small builders).
-      maxParallelFileOps: Number(process.env.ROLLUP_MAX_PARALLEL || 4),
+      maxParallelFileOps: Number(process.env.ROLLUP_MAX_PARALLEL || 2),
       output: {
         manualChunks: {
           'react-core': ['react', 'react-dom', 'react-router-dom'],
@@ -94,6 +96,24 @@ export default defineConfig({
             'react-i18next',
             'i18next-browser-languagedetector',
           ],
+          visactor: [
+            '@visactor/react-vchart',
+            '@visactor/vchart',
+            '@visactor/vchart-semi-theme',
+          ],
+          mermaid: ['mermaid'],
+          antd: ['antd'],
+          'lobe-icons': ['@lobehub/icons'],
+          markdown: [
+            'react-markdown',
+            'remark-gfm',
+            'remark-math',
+            'remark-breaks',
+            'rehype-highlight',
+            'rehype-katex',
+          ],
+          katex: ['katex'],
+          icons: ['react-icons', 'lucide-react'],
         },
       },
     },
