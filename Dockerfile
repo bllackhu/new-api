@@ -6,6 +6,14 @@ COPY web/bun.lock .
 RUN bun install
 COPY ./web .
 COPY ./VERSION .
+
+# Frontend build is memory-heavy (~18k modules). Tune for small build VMs / BuildKit limits:
+#   docker buildx build --build-arg NODE_MEMORY_MB=3072 ...
+ARG NODE_MEMORY_MB=2048
+ENV DISABLE_CODE_INSPECTOR=true \
+    ROLLUP_MAX_PARALLEL=2 \
+    NODE_OPTIONS="--max-old-space-size=${NODE_MEMORY_MB}"
+
 RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) bun run build
 
 FROM golang:1.26.1-alpine@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS builder2
@@ -32,6 +40,9 @@ WORKDIR /build
 
 # GOPROXY=direct clones modules with git; golang:alpine does not ship git by default.
 RUN apk add --no-cache git ca-certificates
+
+# Wait for the frontend stage before Go work so Vite + go mod/build do not peak memory together.
+COPY --from=builder /build/dist/index.html /tmp/spa-index.html
 
 ADD go.mod go.sum ./
 RUN go mod download

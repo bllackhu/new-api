@@ -36,9 +36,14 @@ export default defineConfig({
     },
   },
   plugins: [
-    codeInspectorPlugin({
-      bundler: 'vite',
-    }),
+    // Dev-only: adds work to the transform graph; disable in CI/Docker to save RAM on vite build.
+    ...(process.env.DISABLE_CODE_INSPECTOR === 'true'
+      ? []
+      : [
+          codeInspectorPlugin({
+            bundler: 'vite',
+          }),
+        ]),
     {
       name: 'treat-js-files-as-jsx',
       async transform(code, id) {
@@ -68,7 +73,10 @@ export default defineConfig({
     },
   },
   build: {
+    sourcemap: false,
     rollupOptions: {
+      // Lower peak memory during large SPA builds (default Rollup parallelism can OOM small builders).
+      maxParallelFileOps: Number(process.env.ROLLUP_MAX_PARALLEL || 4),
       output: {
         manualChunks: {
           'react-core': ['react', 'react-dom', 'react-router-dom'],
