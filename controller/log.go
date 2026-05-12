@@ -162,6 +162,9 @@ func DeleteHistoryLogs(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if _, berr := model.DeleteTokenLLMUsageBucketsBefore(c.Request.Context(), targetTimestamp, 100); berr != nil {
+		common.SysLog("failed to prune token_llm_usage_buckets: " + berr.Error())
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

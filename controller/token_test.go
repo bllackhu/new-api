@@ -58,6 +58,9 @@ func setupTokenControllerTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(&model.Token{}); err != nil {
 		t.Fatalf("failed to migrate token table: %v", err)
 	}
+	if err := db.AutoMigrate(&model.TokenLLMUsageBucket{}); err != nil {
+		t.Fatalf("failed to migrate token_llm_usage_buckets: %v", err)
+	}
 
 	t.Cleanup(func() {
 		sqlDB, err := db.DB()

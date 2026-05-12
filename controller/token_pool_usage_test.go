@@ -123,7 +123,6 @@ func TestNormalizeTokenPoolUsageWindows_Defaults(t *testing.T) {
 
 func TestGetTokenPoolUsageSelf_DefaultWindows(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Log{}))
 	token := seedToken(t, db, 88, "agent-token", "agent-token-key")
 
 	originalBuilder := buildTokenPoolUsageItemFunc
@@ -194,42 +193,28 @@ func TestGetTokenPoolUsageSelf_DefaultWindows(t *testing.T) {
 
 func TestGetTokenPoolUsageSelf_LLMTokenAggregates(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Log{}))
 	token := seedToken(t, db, 91, "tok-llm", "tok-llm-key")
 
 	now := time.Now().Unix()
-	require.NoError(t, db.Create(&model.Log{
-		UserId:           token.UserId,
-		Username:         "u91",
-		CreatedAt:        now - 3600,
-		Type:             model.LogTypeConsume,
+	bRecent := model.AlignTokenLLMUsageBucketStart(now - 3600)
+	bOlder := model.AlignTokenLLMUsageBucketStart(now - 3*24*3600)
+	require.NoError(t, db.Create(&model.TokenLLMUsageBucket{
+		TokenId:          token.Id,
+		BucketStart:      bRecent,
 		PromptTokens:     100,
 		CompletionTokens: 40,
-		TokenId:          token.Id,
-		TokenName:        token.Name,
-		ModelName:        "m1",
+		RequestCount:     1,
 	}).Error)
-	require.NoError(t, db.Create(&model.Log{
-		UserId:           token.UserId,
-		Username:         "u91",
-		CreatedAt:        now - 3*24*3600,
-		Type:             model.LogTypeConsume,
+	require.NoError(t, db.Create(&model.TokenLLMUsageBucket{
+		TokenId:          token.Id,
+		BucketStart:      bOlder,
 		PromptTokens:     1,
 		CompletionTokens: 2,
-		TokenId:          token.Id,
-		TokenName:        token.Name,
-		ModelName:        "m2",
+		RequestCount:     1,
 	}).Error)
-	require.NoError(t, db.Create(&model.Log{
-		UserId:           token.UserId,
-		Username:         "u91",
-		CreatedAt:        now - 40*24*3600,
-		Type:             model.LogTypeConsume,
-		PromptTokens:     1000,
-		CompletionTokens: 500,
-		TokenId:          token.Id,
-		TokenName:        token.Name,
-		ModelName:        "m3",
+	require.NoError(t, db.Model(token).Updates(map[string]interface{}{
+		"llm_prompt_tokens_total":     1101,
+		"llm_completion_tokens_total": 542,
 	}).Error)
 
 	originalBuilder := buildTokenPoolUsageItemFunc

@@ -51,9 +51,9 @@ type TokenPoolUsageItem struct {
 	Usage                  map[string]*TokenPoolUsageWindow `json:"usage"`
 }
 
-const tokenPoolLLMTokenDataSource = "consume_logs"
+const tokenPoolLLMTokenDataSource = "token_llm_rollups"
 
-// TokenPoolLLMTokenWindow is rolling-window LLM token totals from consume logs for this API token.
+// TokenPoolLLMTokenWindow is rolling-window LLM token totals from hourly rollup buckets for this API token.
 type TokenPoolLLMTokenWindow struct {
 	Window           string `json:"window"`
 	WindowSeconds    int    `json:"window_seconds"`
@@ -62,7 +62,7 @@ type TokenPoolLLMTokenWindow struct {
 	TotalTokens      int64  `json:"total_tokens"`
 }
 
-// TokenPoolLLMTokenLifetime is all-time LLM token totals from retained consume logs for this API token.
+// TokenPoolLLMTokenLifetime is all-time LLM token totals stored on the tokens row.
 type TokenPoolLLMTokenLifetime struct {
 	PromptTokens     int64 `json:"prompt_tokens"`
 	CompletionTokens int64 `json:"completion_tokens"`
@@ -76,9 +76,10 @@ type TokenPoolLLMTokenUsage struct {
 	Lifetime   TokenPoolLLMTokenLifetime           `json:"lifetime"`
 }
 
-var sumConsumeLogTokensByTokenID = model.SumConsumeLogTokensByTokenID
-
-func buildTokenPoolLLMTokenUsage(tokenId int, windows []string, windowSeconds map[string]int) (*TokenPoolLLMTokenUsage, error) {
+func buildTokenPoolLLMTokenUsage(token *model.Token, windows []string, windowSeconds map[string]int) (*TokenPoolLLMTokenUsage, error) {
+	if token == nil {
+		return nil, errors.New("token is nil")
+	}
 	out := &TokenPoolLLMTokenUsage{
 		DataSource: tokenPoolLLMTokenDataSource,
 		ByWindow:   make(map[string]*TokenPoolLLMTokenWindow, len(windows)),
@@ -87,7 +88,7 @@ func buildTokenPoolLLMTokenUsage(tokenId int, windows []string, windowSeconds ma
 	for _, w := range windows {
 		sec := windowSeconds[w]
 		since := now - int64(sec)
-		prompt, completion, err := sumConsumeLogTokensByTokenID(tokenId, since)
+		prompt, completion, err := model.SumTokenLLMUsageBucketsByTokenSince(token.Id, since)
 		if err != nil {
 			return nil, err
 		}
@@ -99,10 +100,8 @@ func buildTokenPoolLLMTokenUsage(tokenId int, windows []string, windowSeconds ma
 			TotalTokens:      prompt + completion,
 		}
 	}
-	lp, lc, err := sumConsumeLogTokensByTokenID(tokenId, 0)
-	if err != nil {
-		return nil, err
-	}
+	lp := token.LlmPromptTokensTotal
+	lc := token.LlmCompletionTokensTotal
 	out.Lifetime = TokenPoolLLMTokenLifetime{
 		PromptTokens:     lp,
 		CompletionTokens: lc,
@@ -365,7 +364,7 @@ func GetTokenPoolUsageSelf(c *gin.Context) {
 		return
 	}
 
-	llmUsage, err := buildTokenPoolLLMTokenUsage(tokenId, windows, windowSeconds)
+	llmUsage, err := buildTokenPoolLLMTokenUsage(token, windows, windowSeconds)
 	if err != nil {
 		common.ApiError(c, err)
 		return

@@ -26,6 +26,8 @@ type Token struct {
 	ModelLimits        string         `json:"model_limits" gorm:"type:text"`
 	AllowIps           *string        `json:"allow_ips" gorm:"default:''"`
 	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
+	LlmPromptTokensTotal     int64    `json:"llm_prompt_tokens_total" gorm:"bigint;default:0"`
+	LlmCompletionTokensTotal int64    `json:"llm_completion_tokens_total" gorm:"bigint;default:0"`
 	Group              string         `json:"group" gorm:"default:''"`
 	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
 	DeletedAt          gorm.DeletedAt `gorm:"index"`
@@ -259,6 +261,20 @@ func GetTokenById(id int) (*Token, error) {
 		})
 	}
 	return &token, err
+}
+
+// IncrementTokenLLMTokenTotals adds LLM token deltas to the token row (lifetime counters).
+func IncrementTokenLLMTokenTotals(tokenId int, dPrompt, dCompletion int64) error {
+	if DB == nil || tokenId <= 0 {
+		return nil
+	}
+	if dPrompt == 0 && dCompletion == 0 {
+		return nil
+	}
+	return DB.Model(&Token{}).Where("id = ?", tokenId).Updates(map[string]interface{}{
+		"llm_prompt_tokens_total":       gorm.Expr("COALESCE(llm_prompt_tokens_total, 0) + ?", dPrompt),
+		"llm_completion_tokens_total": gorm.Expr("COALESCE(llm_completion_tokens_total, 0) + ?", dCompletion),
+	}).Error
 }
 
 func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {

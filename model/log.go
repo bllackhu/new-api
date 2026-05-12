@@ -244,6 +244,18 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	err := LOG_DB.Create(log).Error
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
+		return
+	}
+	if params.TokenId > 0 {
+		bucketStart := AlignTokenLLMUsageBucketStart(log.CreatedAt)
+		if bucketStart > 0 {
+			if uerr := UpsertTokenLLMUsageBucket(params.TokenId, bucketStart, int64(params.PromptTokens), int64(params.CompletionTokens), 1); uerr != nil {
+				logger.LogError(c, "failed to upsert token llm usage bucket: "+uerr.Error())
+			}
+		}
+		if terr := IncrementTokenLLMTokenTotals(params.TokenId, int64(params.PromptTokens), int64(params.CompletionTokens)); terr != nil {
+			logger.LogError(c, "failed to increment token llm totals: "+terr.Error())
+		}
 	}
 	if common.DataExportEnabled {
 		gopool.Go(func() {
@@ -486,31 +498,6 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	}
 
 	return stat, nil
-}
-
-// SumConsumeLogTokensByTokenID aggregates prompt and completion token counts from
-// consume logs (type=LogTypeConsume) for the given API token id.
-// If sinceUnix is 0, no lower bound is applied (all retained rows for that token).
-func SumConsumeLogTokensByTokenID(tokenId int, sinceUnix int64) (promptSum int64, completionSum int64, err error) {
-	if LOG_DB == nil || tokenId <= 0 {
-		return 0, 0, nil
-	}
-	type aggRow struct {
-		PromptSum     int64 `gorm:"column:prompt_sum"`
-		CompletionSum int64 `gorm:"column:completion_sum"`
-	}
-	var row aggRow
-	q := LOG_DB.Model(&Log{}).
-		Select("COALESCE(SUM(prompt_tokens), 0) AS prompt_sum, COALESCE(SUM(completion_tokens), 0) AS completion_sum").
-		Where("token_id = ? AND type = ?", tokenId, LogTypeConsume)
-	if sinceUnix > 0 {
-		q = q.Where("created_at >= ?", sinceUnix)
-	}
-	err = q.Scan(&row).Error
-	if err != nil {
-		return 0, 0, err
-	}
-	return row.PromptSum, row.CompletionSum, nil
 }
 
 func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string) (token int) {
