@@ -16,6 +16,7 @@ Native WeChat Pay uses **`github.com/wechatpay-apiv3/wechatpay-go`** (pinned in 
 
 ## Native WeChat Pay v3 — token pool subscription
 
+- **Example bare-metal layout / `.env` template:** [`scripts/deploy/01-setup-server.sh`](../scripts/deploy/01-setup-server.sh) (includes `WECHATPAY_*` and pool flags); binary install: [`scripts/deploy/02-deploy-binary.sh`](../scripts/deploy/02-deploy-binary.sh).
 - **Separate rail:** WeChat Pay API v3 via `wechatpay-go`; merchant credentials from env (see `service/wechatpay` package).
 - **Order:** `token_pool_subscription_orders`; fulfillment updates **`token_pool_subscriptions`** for `(token_id, pool_id)` access windows.
 - **Notify:** `POST /api/payment/wechat/notify` — SDK `notify.Handler` verify + decrypt; idempotent completion (reuse `LockOrder` pattern from top-up).
