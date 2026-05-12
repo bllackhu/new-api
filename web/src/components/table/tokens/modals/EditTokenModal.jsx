@@ -114,6 +114,7 @@ const EditTokenModal = (props) => {
     allow_ips: '',
     group: '',
     cross_group_retry: false,
+    require_pool_subscription: false,
     tokenCount: 1,
   });
 
@@ -456,6 +457,14 @@ const EditTokenModal = (props) => {
                       extraText={t(
                         '开启后，当前分组渠道失败时会按顺序尝试下一个分组的渠道',
                       )}
+                    />
+                  </Col>
+                  <Col span={24}>
+                    <Form.Switch
+                      field='require_pool_subscription'
+                      label='Require pool subscription (WeChat)'
+                      size='default'
+                      extraText='When enabled, if this token resolves to a pool with a monthly price, relay requests require an active native WeChat pool subscription for that token and pool.'
                     />
                   </Col>
                   <Col xs={24} sm={24} md={24} lg={10} xl={10}>

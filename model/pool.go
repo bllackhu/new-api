@@ -29,15 +29,15 @@ const (
 )
 
 type Pool struct {
-	Id                     int     `json:"id"`
-	Name                   string  `json:"name" gorm:"type:varchar(64);uniqueIndex;not null"`
-	Description            string  `json:"description" gorm:"type:varchar(255);default:''"`
-	Status                 int     `json:"status" gorm:"default:1;index"`
+	Id                   int     `json:"id"`
+	Name                 string  `json:"name" gorm:"type:varchar(64);uniqueIndex;not null"`
+	Description          string  `json:"description" gorm:"type:varchar(255);default:''"`
+	Status               int     `json:"status" gorm:"default:1;index"`
 	MonthlyPriceCny      float64 `json:"monthly_price_cny" gorm:"default:0"` // 0 = no native WeChat subscription gate
 	BillingCurrency      string  `json:"billing_currency" gorm:"size:8;default:CNY"`
 	BillingPeriodSeconds int64   `json:"billing_period_seconds" gorm:"default:2592000"` // default 30 days
-	CreatedAt              int64   `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt              int64   `json:"updated_at" gorm:"bigint"`
+	CreatedAt            int64   `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt            int64   `json:"updated_at" gorm:"bigint"`
 }
 
 type PoolChannel struct {
@@ -217,6 +217,12 @@ func PoolRequiresPaidSubscription(pool *Pool) bool {
 	return pool.MonthlyPriceCny > 0.000001
 }
 
+// TokenRelayRequiresPoolSubscriptionCheck is true when relay must verify token_pool_subscriptions for this request.
+// Pool must be priced; token must have opted in (RequirePoolSubscription on the token row).
+func TokenRelayRequiresPoolSubscriptionCheck(pool *Pool, tokenRequirePoolSubscription bool) bool {
+	return PoolRequiresPaidSubscription(pool) && tokenRequirePoolSubscription
+}
+
 func ResolvePoolForUser(userId int, usingGroup string) (*Pool, error) {
 	return ResolvePoolForContext(userId, 0, usingGroup)
 }
@@ -306,13 +312,13 @@ func UpdatePool(pool *Pool) error {
 		return errors.New("invalid pool")
 	}
 	return DB.Model(&Pool{}).Where("id = ?", pool.Id).Updates(map[string]interface{}{
-		"name":                     pool.Name,
-		"description":              pool.Description,
-		"status":                   pool.Status,
-		"monthly_price_cny":        pool.MonthlyPriceCny,
-		"billing_currency":         pool.BillingCurrency,
-		"billing_period_seconds":   pool.BillingPeriodSeconds,
-		"updated_at":               common.GetTimestamp(),
+		"name":                   pool.Name,
+		"description":            pool.Description,
+		"status":                 pool.Status,
+		"monthly_price_cny":      pool.MonthlyPriceCny,
+		"billing_currency":       pool.BillingCurrency,
+		"billing_period_seconds": pool.BillingPeriodSeconds,
+		"updated_at":             common.GetTimestamp(),
 	}).Error
 }
 

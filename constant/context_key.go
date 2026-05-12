@@ -46,6 +46,8 @@ const (
 	ContextKeyPoolId       ContextKey = "pool_id"
 	ContextKeyPoolName     ContextKey = "pool_name"
 	ContextKeyPoolScopeKey ContextKey = "pool_scope_key"
+	// ContextKeyTokenRequirePoolSubscription is set from token.RequirePoolSubscription during TokenAuth (opt-in pool subscription gate).
+	ContextKeyTokenRequirePoolSubscription ContextKey = "token_require_pool_subscription"
 
 	/* user related keys */
 	ContextKeyUserId      ContextKey = "id"

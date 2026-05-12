@@ -39,7 +39,8 @@ func PoolSelect() func(c *gin.Context) {
 		common.SetContextKey(c, constant.ContextKeyPoolId, pool.Id)
 		common.SetContextKey(c, constant.ContextKeyPoolName, pool.Name)
 		common.SetContextKey(c, constant.ContextKeyPoolScopeKey, "user:"+strconv.Itoa(userId))
-		if model.PoolRequiresPaidSubscription(pool) {
+		requireSub := common.GetContextKeyBool(c, constant.ContextKeyTokenRequirePoolSubscription)
+		if model.TokenRelayRequiresPoolSubscriptionCheck(pool, requireSub) {
 			if tokenId <= 0 {
 				abortWithOpenAiMessage(c, http.StatusPaymentRequired, "this pool requires an API token with an active paid subscription")
 				return
