@@ -49,6 +49,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/stripe/webhook", controller.StripeWebhook)
 		apiRouter.POST("/creem/webhook", controller.CreemWebhook)
 		apiRouter.POST("/waffo/webhook", controller.WaffoWebhook)
+		apiRouter.POST("/payment/wechat/notify", controller.WeChatPayPoolSubscriptionNotify)
 		//apiRouter.POST("/waffo-pancake/webhook", controller.WaffoPancakeWebhook)
 
 		// Universal secure verification routes
@@ -93,6 +94,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/creem/pay", middleware.CriticalRateLimit(), controller.RequestCreemPay)
 				selfRoute.POST("/waffo/amount", controller.RequestWaffoAmount)
 				selfRoute.POST("/waffo/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPay)
+				selfRoute.POST("/pool/subscription/wechat/checkout", middleware.CriticalRateLimit(), controller.RequestTokenPoolSubscriptionWechatCheckout)
 				//selfRoute.POST("/waffo-pancake/amount", controller.RequestWaffoPancakeAmount)
 				//selfRoute.POST("/waffo-pancake/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPancakePay)
 				selfRoute.POST("/aff_transfer", controller.TransferAffQuota)
@@ -299,6 +301,7 @@ func SetApiRouter(router *gin.Engine) {
 			poolRoute.PUT("/binding", controller.UpdatePoolBinding)
 			poolRoute.DELETE("/binding/:id", controller.DeletePoolBinding)
 			poolRoute.GET("/usage", controller.GetPoolRollingUsage)
+			poolRoute.GET("/subscription_orders", controller.GetPoolSubscriptionOrders)
 		}
 
 		poolSelfRoute := apiRouter.Group("/pool")

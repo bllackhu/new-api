@@ -29,12 +29,15 @@ const (
 )
 
 type Pool struct {
-	Id          int    `json:"id"`
-	Name        string `json:"name" gorm:"type:varchar(64);uniqueIndex;not null"`
-	Description string `json:"description" gorm:"type:varchar(255);default:''"`
-	Status      int    `json:"status" gorm:"default:1;index"`
-	CreatedAt   int64  `json:"created_at" gorm:"bigint;index"`
-	UpdatedAt   int64  `json:"updated_at" gorm:"bigint"`
+	Id                     int     `json:"id"`
+	Name                   string  `json:"name" gorm:"type:varchar(64);uniqueIndex;not null"`
+	Description            string  `json:"description" gorm:"type:varchar(255);default:''"`
+	Status                 int     `json:"status" gorm:"default:1;index"`
+	MonthlyPriceCny      float64 `json:"monthly_price_cny" gorm:"default:0"` // 0 = no native WeChat subscription gate
+	BillingCurrency      string  `json:"billing_currency" gorm:"size:8;default:CNY"`
+	BillingPeriodSeconds int64   `json:"billing_period_seconds" gorm:"default:2592000"` // default 30 days
+	CreatedAt              int64   `json:"created_at" gorm:"bigint;index"`
+	UpdatedAt              int64   `json:"updated_at" gorm:"bigint"`
 }
 
 type PoolChannel struct {
@@ -76,6 +79,12 @@ func (p *Pool) BeforeCreate(tx *gorm.DB) error {
 		p.CreatedAt = common.GetTimestamp()
 	}
 	p.UpdatedAt = common.GetTimestamp()
+	if p.BillingPeriodSeconds <= 0 {
+		p.BillingPeriodSeconds = 30 * 24 * 3600
+	}
+	if p.BillingCurrency == "" {
+		p.BillingCurrency = "CNY"
+	}
 	return nil
 }
 
@@ -200,6 +209,14 @@ func ResolvePoolForContext(userId int, tokenId int, usingGroup string) (*Pool, e
 	return GetDefaultPool()
 }
 
+// PoolRequiresPaidSubscription is true when this pool charges a monthly native WeChat subscription per API token.
+func PoolRequiresPaidSubscription(pool *Pool) bool {
+	if pool == nil {
+		return false
+	}
+	return pool.MonthlyPriceCny > 0.000001
+}
+
 func ResolvePoolForUser(userId int, usingGroup string) (*Pool, error) {
 	return ResolvePoolForContext(userId, 0, usingGroup)
 }
@@ -289,10 +306,13 @@ func UpdatePool(pool *Pool) error {
 		return errors.New("invalid pool")
 	}
 	return DB.Model(&Pool{}).Where("id = ?", pool.Id).Updates(map[string]interface{}{
-		"name":        pool.Name,
-		"description": pool.Description,
-		"status":      pool.Status,
-		"updated_at":  common.GetTimestamp(),
+		"name":                     pool.Name,
+		"description":              pool.Description,
+		"status":                   pool.Status,
+		"monthly_price_cny":        pool.MonthlyPriceCny,
+		"billing_currency":         pool.BillingCurrency,
+		"billing_period_seconds":   pool.BillingPeriodSeconds,
+		"updated_at":               common.GetTimestamp(),
 	}).Error
 }
 

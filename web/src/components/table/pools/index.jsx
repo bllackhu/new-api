@@ -111,6 +111,13 @@ const PoolsTable = () => {
     clearBindingFilters,
     saveBinding,
 
+    subOrderItems,
+    subOrderTotal,
+    subOrderPage,
+    subOrderLoading,
+    loadSubscriptionOrders,
+    subOrderColumns,
+
     usageLoading,
     usageQuery,
     setUsageQuery,
@@ -170,6 +177,7 @@ const PoolsTable = () => {
             if (activeTab === 'channel') loadPoolChannels(1);
             if (activeTab === 'policy') loadPolicies(1);
             if (activeTab === 'binding') loadBindings(1);
+            if (activeTab === 'sub_orders') loadSubscriptionOrders(subOrderPage);
           }}
         >
           {t('Refresh')}
@@ -312,6 +320,30 @@ const PoolsTable = () => {
               total: policyTotal,
               onPageChange: (p) => loadPolicies(p),
             }}
+          />
+        </TabPane>
+
+        <TabPane
+          className='pt-4'
+          tab={t('Pool subscription orders')}
+          itemKey='sub_orders'
+        >
+          <Table
+            rowKey='id'
+            loading={subOrderLoading}
+            columns={subOrderColumns}
+            dataSource={subOrderItems}
+            pagination={{
+              currentPage: subOrderPage,
+              pageSize: PAGE_SIZE,
+              total: subOrderTotal,
+              onPageChange: (p) => loadSubscriptionOrders(p),
+            }}
+            empty={
+              <Empty description={t('No data')}>
+                <span />
+              </Empty>
+            }
           />
         </TabPane>
       </Tabs>

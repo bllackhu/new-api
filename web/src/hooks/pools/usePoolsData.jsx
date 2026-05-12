@@ -44,8 +44,16 @@ export const usePoolsData = () => {
     name: '',
     description: '',
     status: 1,
+    monthly_price_cny: 0,
+    billing_currency: 'CNY',
+    billing_period_seconds: 30 * 24 * 3600,
   });
   const [showPoolForm, setShowPoolForm] = useState(false);
+
+  const [subOrderItems, setSubOrderItems] = useState([]);
+  const [subOrderTotal, setSubOrderTotal] = useState(0);
+  const [subOrderPage, setSubOrderPage] = useState(1);
+  const [subOrderLoading, setSubOrderLoading] = useState(false);
 
   const [channelItems, setChannelItems] = useState([]);
   const [channelTotal, setChannelTotal] = useState(0);
@@ -246,16 +254,47 @@ export const usePoolsData = () => {
     [bindingPage, bindingTypeFilter, bindingValueFilter, bindingNameFilter, t],
   );
 
+  const loadSubscriptionOrders = useCallback(async (targetPage) => {
+    setSubOrderLoading(true);
+    try {
+      const res = await API.get(
+        `/api/pool/subscription_orders?p=${targetPage}&page_size=${PAGE_SIZE}`,
+      );
+      if (!res?.data?.success) {
+        showError(res?.data?.message || t('Failed to load subscription orders'));
+        return;
+      }
+      const data = res.data.data;
+      setSubOrderItems(data?.items || []);
+      setSubOrderTotal(data?.total || 0);
+      setSubOrderPage(data?.page || targetPage);
+    } catch (error) {
+      showError(getErrorMessage(error, t('Failed to load subscription orders')));
+    } finally {
+      setSubOrderLoading(false);
+    }
+  }, [t]);
+
   const handleTabChange = async (key) => {
     setActiveTab(key);
     if (key === 'pool' && poolItems.length === 0) await loadPools(1);
     if (key === 'channel' && channelItems.length === 0) await loadPoolChannels(1);
     if (key === 'policy' && policyItems.length === 0) await loadPolicies(1);
     if (key === 'binding' && bindingItems.length === 0) await loadBindings(1);
+    if (key === 'sub_orders' && subOrderItems.length === 0)
+      await loadSubscriptionOrders(1);
   };
 
   const resetPoolForm = () =>
-    setPoolForm({ id: 0, name: '', description: '', status: 1 });
+    setPoolForm({
+      id: 0,
+      name: '',
+      description: '',
+      status: 1,
+      monthly_price_cny: 0,
+      billing_currency: 'CNY',
+      billing_period_seconds: 30 * 24 * 3600,
+    });
   const resetChannelForm = () =>
     setChannelForm({
       id: 0,
@@ -294,6 +333,10 @@ export const usePoolsData = () => {
       name: record.name || '',
       description: record.description || '',
       status: Number(record.status) || 1,
+      monthly_price_cny: Number(record.monthly_price_cny) || 0,
+      billing_currency: record.billing_currency || 'CNY',
+      billing_period_seconds:
+        Number(record.billing_period_seconds) || 30 * 24 * 3600,
     });
     setShowPoolForm(true);
   };
@@ -386,7 +429,14 @@ export const usePoolsData = () => {
       showError(t('Pool name is required'));
       return;
     }
-    const payload = { ...poolForm, status: Number(poolForm.status) || 1 };
+    const payload = {
+      ...poolForm,
+      status: Number(poolForm.status) || 1,
+      monthly_price_cny: Number(poolForm.monthly_price_cny) || 0,
+      billing_currency: poolForm.billing_currency || 'CNY',
+      billing_period_seconds:
+        Number(poolForm.billing_period_seconds) || 30 * 24 * 3600,
+    };
     try {
       const res =
         poolForm.id > 0
@@ -611,6 +661,18 @@ export const usePoolsData = () => {
       { title: 'Name', dataIndex: 'name' },
       { title: 'Description', dataIndex: 'description' },
       {
+        title: 'Monthly (CNY)',
+        dataIndex: 'monthly_price_cny',
+        width: 110,
+        render: (v) => (v != null ? String(v) : '0'),
+      },
+      { title: 'Billing currency', dataIndex: 'billing_currency', width: 110 },
+      {
+        title: 'Billing period (s)',
+        dataIndex: 'billing_period_seconds',
+        width: 130,
+      },
+      {
         title: 'Status',
         dataIndex: 'status',
         render: (value) => (Number(value) === 1 ? 'Enabled' : 'Disabled'),
@@ -648,6 +710,51 @@ export const usePoolsData = () => {
       },
     ],
     [loadPools, poolPage, t],
+  );
+
+  const subOrderColumns = useMemo(
+    () => [
+      { title: 'ID', dataIndex: 'id', width: 72 },
+      { title: 'User', dataIndex: 'user_id', width: 72 },
+      { title: 'Token', dataIndex: 'token_id', width: 72 },
+      { title: 'Pool', dataIndex: 'pool_id', width: 72 },
+      {
+        title: 'Amount (CNY)',
+        dataIndex: 'amount_cny',
+        width: 100,
+        render: (v) => (v != null ? String(v) : ''),
+      },
+      { title: 'Currency', dataIndex: 'currency', width: 80 },
+      {
+        title: 'Fen',
+        dataIndex: 'amount_total_fen',
+        width: 80,
+      },
+      { title: 'Status', dataIndex: 'status', width: 100 },
+      {
+        title: 'Trade no',
+        dataIndex: 'trade_no',
+        width: 160,
+        render: (value) => (
+          <Typography.Text copyable={{ content: String(value || '') }}>
+            {value}
+          </Typography.Text>
+        ),
+      },
+      {
+        title: 'WeChat txn',
+        dataIndex: 'wechat_transaction_id',
+        width: 140,
+        render: (value) => (
+          <Typography.Text copyable={{ content: String(value || '') }}>
+            {value || '-'}
+          </Typography.Text>
+        ),
+      },
+      { title: 'Created', dataIndex: 'create_time', width: 110 },
+      { title: 'Completed', dataIndex: 'complete_time', width: 110 },
+    ],
+    [],
   );
 
   const channelColumns = useMemo(
@@ -862,6 +969,13 @@ export const usePoolsData = () => {
     clearBindingFilters,
     resetBindingForm,
     saveBinding,
+
+    subOrderItems,
+    subOrderTotal,
+    subOrderPage,
+    subOrderLoading,
+    loadSubscriptionOrders,
+    subOrderColumns,
 
     usageLoading,
     usageQuery,

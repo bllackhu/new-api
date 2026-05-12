@@ -73,6 +73,40 @@ const PoolFormSideSheet = ({
           <Select.Option value='1'>Enabled</Select.Option>
           <Select.Option value='2'>Disabled</Select.Option>
         </Select>
+        <Input
+          placeholder='monthly_price_cny (0 = no paid pool gate)'
+          value={String(formData.monthly_price_cny ?? 0)}
+          onChange={(value) =>
+            setFormData((prev) => {
+              if (value === '') {
+                return { ...prev, monthly_price_cny: 0 };
+              }
+              const n = Number.parseFloat(value);
+              return {
+                ...prev,
+                monthly_price_cny: Number.isFinite(n) ? n : prev.monthly_price_cny,
+              };
+            })
+          }
+        />
+        <Input
+          placeholder='billing_currency (e.g. CNY)'
+          value={formData.billing_currency || 'CNY'}
+          onChange={(value) =>
+            setFormData((prev) => ({ ...prev, billing_currency: value }))
+          }
+        />
+        <Input
+          placeholder='billing_period_seconds (default 2592000 = 30d)'
+          value={String(formData.billing_period_seconds ?? 30 * 24 * 3600)}
+          onChange={(value) =>
+            setFormData((prev) => ({
+              ...prev,
+              billing_period_seconds:
+                value === '' ? 30 * 24 * 3600 : parseInt(value, 10) || 30 * 24 * 3600,
+            }))
+          }
+        />
       </div>
     </SideSheet>
   );

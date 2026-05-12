@@ -44,6 +44,8 @@ func TestMain(m *testing.M) {
 		&SubscriptionOrder{},
 		&UserSubscription{},
 		&TokenLLMUsageBucket{},
+		&TokenPoolSubscriptionOrder{},
+		&TokenPoolSubscription{},
 	); err != nil {
 		panic("failed to migrate: " + err.Error())
 	}
@@ -57,6 +59,8 @@ func truncateTables(t *testing.T) {
 		DB.Exec("DELETE FROM tasks")
 		DB.Exec("DELETE FROM users")
 		DB.Exec("DELETE FROM token_llm_usage_buckets")
+		DB.Exec("DELETE FROM token_pool_subscription_orders")
+		DB.Exec("DELETE FROM token_pool_subscriptions")
 		DB.Exec("DELETE FROM tokens")
 		DB.Exec("DELETE FROM logs")
 		DB.Exec("DELETE FROM channels")

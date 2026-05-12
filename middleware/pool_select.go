@@ -39,6 +39,21 @@ func PoolSelect() func(c *gin.Context) {
 		common.SetContextKey(c, constant.ContextKeyPoolId, pool.Id)
 		common.SetContextKey(c, constant.ContextKeyPoolName, pool.Name)
 		common.SetContextKey(c, constant.ContextKeyPoolScopeKey, "user:"+strconv.Itoa(userId))
+		if model.PoolRequiresPaidSubscription(pool) {
+			if tokenId <= 0 {
+				abortWithOpenAiMessage(c, http.StatusPaymentRequired, "this pool requires an API token with an active paid subscription")
+				return
+			}
+			ok, err := model.TokenHasActivePoolSubscription(tokenId, pool.Id)
+			if err != nil {
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, "failed to verify pool subscription")
+				return
+			}
+			if !ok {
+				abortWithOpenAiMessage(c, http.StatusPaymentRequired, "active pool subscription required for this token")
+				return
+			}
+		}
 		c.Next()
 	}
 }

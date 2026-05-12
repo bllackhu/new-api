@@ -285,6 +285,8 @@ func migrateDB() error {
 		&PoolQuotaPolicy{},
 		&PoolBinding{},
 		&TokenLLMUsageBucket{},
+		&TokenPoolSubscriptionOrder{},
+		&TokenPoolSubscription{},
 	)
 	if err != nil {
 		return err
@@ -338,6 +340,8 @@ func migrateDBFast() error {
 		{&PoolQuotaPolicy{}, "PoolQuotaPolicy"},
 		{&PoolBinding{}, "PoolBinding"},
 		{&TokenLLMUsageBucket{}, "TokenLLMUsageBucket"},
+		{&TokenPoolSubscriptionOrder{}, "TokenPoolSubscriptionOrder"},
+		{&TokenPoolSubscription{}, "TokenPoolSubscription"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))
