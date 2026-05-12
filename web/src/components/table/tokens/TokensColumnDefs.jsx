@@ -348,6 +348,135 @@ const renderQuotaUsage = (text, record, t) => {
   );
 };
 
+const getPoolUsageReasonLabel = (reason, t) => {
+  switch (reason) {
+    case 'no_resolved_pool':
+      return t('未解析到池');
+    case 'redis_required':
+      return t('需要 Redis 才能统计');
+    case 'window_not_retained':
+      return t('当前池未保留该时间窗口');
+    case 'token_scope_not_enabled':
+      return t('当前池未启用令牌维度统计');
+    case 'user_scope_only':
+      return t('当前池仅按用户维度统计');
+    default:
+      return t('暂无可用数据');
+  }
+};
+
+const renderPoolUsageMetric = (label, metric, t) => {
+  const countText =
+    metric && metric.available && metric.count != null ? String(metric.count) : '--';
+  const color = metric?.available
+    ? 'var(--semi-color-text-0)'
+    : 'var(--semi-color-text-2)';
+  return (
+    <div key={label} className='min-w-[48px]'>
+      <div className='text-[11px] leading-none text-gray-500'>{label}</div>
+      <div className='text-xs font-medium mt-1' style={{ color }}>
+        {countText}
+      </div>
+    </div>
+  );
+};
+
+const renderPoolUsage = (
+  record,
+  tokenPoolUsageById,
+  poolUsageLoading,
+  poolUsageError,
+  t,
+) => {
+  const { Text } = Typography;
+  const item = tokenPoolUsageById?.[record.id];
+  if (poolUsageLoading && !item) {
+    return (
+      <div className='min-w-[180px]'>
+        <Tag color='white' shape='circle' size='small'>
+          {t('加载中...')}
+        </Tag>
+      </div>
+    );
+  }
+  if (!item) {
+    const emptyText = poolUsageError ? t('加载失败') : t('暂无数据');
+    return (
+      <div className='min-w-[180px]'>
+        <Tag color='white' shape='circle' size='small'>
+          {emptyText}
+        </Tag>
+      </div>
+    );
+  }
+
+  const metrics = [
+    ['5h', item.usage?.['5h']],
+    ['7d', item.usage?.['7d']],
+    ['30d', item.usage?.['30d']],
+  ];
+  const warningMetric = metrics.find(([, metric]) => metric && !metric.available)?.[1];
+  const detailContent = (
+    <div className='p-1 max-w-[260px]'>
+      <div className='flex items-center gap-2 mb-2'>
+        <Text strong>{item.pool_name || t('未解析到池')}</Text>
+        {item.scope_type === 'user' && (
+          <Tag size='small' color='yellow' shape='circle'>
+            {t('仅用户维度')}
+          </Tag>
+        )}
+        {item.scope_type === 'token' && item.token_scope_enabled && (
+          <Tag size='small' color='blue' shape='circle'>
+            {t('令牌维度')}
+          </Tag>
+        )}
+      </div>
+      <div className='grid grid-cols-3 gap-2 mb-2'>
+        {metrics.map(([label, metric]) => renderPoolUsageMetric(label, metric, t))}
+      </div>
+      <Text type='tertiary' size='small'>
+        {t('实时滚动请求计数')}
+      </Text>
+      {item.retention_window_seconds > 0 && (
+        <div className='mt-1'>
+          <Text type='tertiary' size='small'>
+            {t('最长保留窗口')}: {item.retention_window_seconds}s
+          </Text>
+        </div>
+      )}
+      {warningMetric?.reason && (
+        <div className='mt-2'>
+          <Tag size='small' color='yellow' shape='circle'>
+            {getPoolUsageReasonLabel(warningMetric.reason, t)}
+          </Tag>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <Popover content={detailContent} position='top'>
+      <div className='min-w-[180px]'>
+        <div className='mb-1'>
+          <Tag color='blue' shape='circle' size='small'>
+            {item.pool_name || t('未解析到池')}
+          </Tag>
+        </div>
+        <div className='flex items-start gap-3'>
+          {metrics.map(([label, metric]) => renderPoolUsageMetric(label, metric, t))}
+        </div>
+        {warningMetric?.reason && (
+          <div className='mt-1'>
+            <Text size='small' style={{ color: 'var(--semi-color-warning)' }}>
+              {getPoolUsageReasonLabel(warningMetric.reason, t)}
+            </Text>
+          </div>
+        )}
+      </div>
+    </Popover>
+  );
+};
+
 // Render operations column
 const renderOperations = (
   text,
@@ -480,6 +609,9 @@ export const getTokensColumns = ({
   setShowEdit,
   refresh,
   groupRatios = {},
+  tokenPoolUsageById = {},
+  poolUsageLoading = false,
+  poolUsageError = '',
 }) => {
   return [
     {
@@ -528,6 +660,18 @@ export const getTokensColumns = ({
       title: t('剩余额度/总额度'),
       key: 'quota_usage',
       render: (text, record) => renderQuotaUsage(text, record, t),
+    },
+    {
+      title: t('池使用'),
+      key: 'pool_usage',
+      render: (text, record) =>
+        renderPoolUsage(
+          record,
+          tokenPoolUsageById,
+          poolUsageLoading,
+          poolUsageError,
+          t,
+        ),
     },
     {
       title: t('可用模型'),

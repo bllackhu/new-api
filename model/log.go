@@ -488,6 +488,31 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	return stat, nil
 }
 
+// SumConsumeLogTokensByTokenID aggregates prompt and completion token counts from
+// consume logs (type=LogTypeConsume) for the given API token id.
+// If sinceUnix is 0, no lower bound is applied (all retained rows for that token).
+func SumConsumeLogTokensByTokenID(tokenId int, sinceUnix int64) (promptSum int64, completionSum int64, err error) {
+	if LOG_DB == nil || tokenId <= 0 {
+		return 0, 0, nil
+	}
+	type aggRow struct {
+		PromptSum     int64 `gorm:"column:prompt_sum"`
+		CompletionSum int64 `gorm:"column:completion_sum"`
+	}
+	var row aggRow
+	q := LOG_DB.Model(&Log{}).
+		Select("COALESCE(SUM(prompt_tokens), 0) AS prompt_sum, COALESCE(SUM(completion_tokens), 0) AS completion_sum").
+		Where("token_id = ? AND type = ?", tokenId, LogTypeConsume)
+	if sinceUnix > 0 {
+		q = q.Where("created_at >= ?", sinceUnix)
+	}
+	err = q.Scan(&row).Error
+	if err != nil {
+		return 0, 0, err
+	}
+	return row.PromptSum, row.CompletionSum, nil
+}
+
 func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string) (token int) {
 	tx := LOG_DB.Table("logs").Select("ifnull(sum(prompt_tokens),0) + ifnull(sum(completion_tokens),0)")
 	if username != "" {

@@ -382,6 +382,9 @@ function TokensPage() {
         editingToken={editingToken}
         visiable={showEdit}
         handleClose={closeEdit}
+        tokenPoolUsage={tokensData.tokenPoolUsageById?.[editingToken?.id]}
+        poolUsageLoading={tokensData.poolUsageLoading}
+        poolUsageError={tokensData.poolUsageError}
       />
 
       <CCSwitchModal

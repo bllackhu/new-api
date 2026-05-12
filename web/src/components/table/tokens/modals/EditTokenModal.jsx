@@ -59,6 +59,30 @@ import { StatusContext } from '../../../../context/Status';
 
 const { Text, Title } = Typography;
 
+const getPoolUsageReasonText = (reason, t) => {
+  switch (reason) {
+    case 'no_resolved_pool':
+      return t('未解析到池');
+    case 'redis_required':
+      return t('需要 Redis 才能统计');
+    case 'window_not_retained':
+      return t('当前池未保留该时间窗口');
+    case 'token_scope_not_enabled':
+      return t('当前池未启用令牌维度统计');
+    case 'user_scope_only':
+      return t('当前池仅按用户维度统计');
+    default:
+      return t('暂无可用数据');
+  }
+};
+
+const renderPoolUsageCount = (metric) => {
+  if (metric?.available && metric?.count != null) {
+    return String(metric.count);
+  }
+  return '--';
+};
+
 const EditTokenModal = (props) => {
   const { t } = useTranslation();
   const [statusState, statusDispatch] = useContext(StatusContext);
@@ -69,6 +93,15 @@ const EditTokenModal = (props) => {
   const [groups, setGroups] = useState([]);
   const [showQuotaInput, setShowQuotaInput] = useState(false);
   const isEdit = props.editingToken.id !== undefined;
+  const poolUsage = props.tokenPoolUsage;
+  const poolUsageMetrics = [
+    ['5h', poolUsage?.usage?.['5h']],
+    ['7d', poolUsage?.usage?.['7d']],
+    ['30d', poolUsage?.usage?.['30d']],
+  ];
+  const poolUsageWarningMetric = poolUsageMetrics.find(
+    ([, metric]) => metric && !metric.available,
+  )?.[1];
 
   const getInitValues = () => ({
     name: '',
@@ -590,6 +623,81 @@ const EditTokenModal = (props) => {
                   </Col>
                 </Row>
               </Card>
+
+              {isEdit && (
+                <Card className='!rounded-2xl shadow-sm border-0 mt-2'>
+                  <div className='flex items-center mb-2'>
+                    <Avatar size='small' color='cyan' className='mr-2 shadow-md'>
+                      <IconLink size={16} />
+                    </Avatar>
+                    <div>
+                      <Text className='text-lg font-medium'>{t('池使用')}</Text>
+                      <div className='text-xs text-gray-600'>
+                        {t('查看当前令牌在池中的实时滚动请求计数')}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className='flex flex-wrap items-center gap-2 mb-3'>
+                    <Tag color='blue' shape='circle'>
+                      {poolUsage?.pool_name || t('未解析到池')}
+                    </Tag>
+                    {poolUsage?.scope_type === 'token' && poolUsage?.token_scope_enabled && (
+                      <Tag color='green' shape='circle'>
+                        {t('令牌维度')}
+                      </Tag>
+                    )}
+                    {poolUsage?.scope_type === 'user' && (
+                      <Tag color='yellow' shape='circle'>
+                        {t('仅用户维度')}
+                      </Tag>
+                    )}
+                    {poolUsage?.pool_id > 0 && (
+                      <Tag color='white' shape='circle'>
+                        pool_id: {poolUsage.pool_id}
+                      </Tag>
+                    )}
+                  </div>
+
+                  {props.poolUsageLoading && !poolUsage ? (
+                    <Text type='secondary'>{t('加载池使用数据中...')}</Text>
+                  ) : (
+                    <Row gutter={12}>
+                      {poolUsageMetrics.map(([label, metric]) => (
+                        <Col key={label} span={8}>
+                          <Card bodyStyle={{ padding: 12 }} className='border border-slate-100'>
+                            <div className='text-xs text-gray-500'>{label}</div>
+                            <div className='text-lg font-semibold mt-1'>
+                              {renderPoolUsageCount(metric)}
+                            </div>
+                          </Card>
+                        </Col>
+                      ))}
+                    </Row>
+                  )}
+
+                  <div className='mt-3 flex flex-col gap-2'>
+                    <Text type='tertiary' className='text-xs'>
+                      {t('实时滚动请求计数')}
+                    </Text>
+                    {poolUsage?.retention_window_seconds > 0 && (
+                      <Text type='tertiary' className='text-xs'>
+                        {t('最长保留窗口')}: {poolUsage.retention_window_seconds}s
+                      </Text>
+                    )}
+                    {poolUsageWarningMetric?.reason && (
+                      <Tag color='yellow' shape='circle'>
+                        {getPoolUsageReasonText(poolUsageWarningMetric.reason, t)}
+                      </Tag>
+                    )}
+                    {!poolUsage && props.poolUsageError && (
+                      <Tag color='red' shape='circle'>
+                        {props.poolUsageError}
+                      </Tag>
+                    )}
+                  </div>
+                </Card>
+              )}
 
               {/* 访问限制 */}
               <Card className='!rounded-2xl shadow-sm border-0'>

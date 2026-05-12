@@ -41,6 +41,9 @@ const TokensTable = (tokensData) => {
     showKeys,
     resolvedTokenKeys,
     loadingTokenKeys,
+    tokenPoolUsageById,
+    poolUsageLoading,
+    poolUsageError,
     toggleTokenVisibility,
     copyTokenKey,
     copyTokenConnectionString,
@@ -69,6 +72,9 @@ const TokensTable = (tokensData) => {
       setShowEdit,
       refresh,
       groupRatios,
+      tokenPoolUsageById,
+      poolUsageLoading,
+      poolUsageError,
     });
   }, [
     t,
@@ -84,6 +90,9 @@ const TokensTable = (tokensData) => {
     setShowEdit,
     refresh,
     groupRatios,
+    tokenPoolUsageById,
+    poolUsageLoading,
+    poolUsageError,
   ]);
 
   // Handle compact mode by removing fixed positioning

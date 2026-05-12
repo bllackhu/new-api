@@ -64,6 +64,10 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
   const [resolvedTokenKeys, setResolvedTokenKeys] = useState({});
   const [loadingTokenKeys, setLoadingTokenKeys] = useState({});
   const keyRequestsRef = useRef({});
+  const [tokenPoolUsageById, setTokenPoolUsageById] = useState({});
+  const [poolUsageLoading, setPoolUsageLoading] = useState(false);
+  const [poolUsageError, setPoolUsageError] = useState('');
+  const poolUsageRequestRef = useRef(0);
 
   // Form state
   const [formApi, setFormApi] = useState(null);
@@ -92,12 +96,66 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
   };
 
   // Sync page data from API response
-  const syncPageData = (payload) => {
-    setTokens(payload.items || []);
+  const loadTokenPoolUsage = async (tokenItems = []) => {
+    const requestId = ++poolUsageRequestRef.current;
+    const ids = (tokenItems || [])
+      .map((item) => item?.id)
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    if (ids.length === 0) {
+      if (requestId === poolUsageRequestRef.current) {
+        setTokenPoolUsageById({});
+        setPoolUsageError('');
+        setPoolUsageLoading(false);
+      }
+      return;
+    }
+
+    setPoolUsageLoading(true);
+    setPoolUsageError('');
+    try {
+      const res = await API.post('/api/token/pool_usage', {
+        ids,
+        windows: ['5h', '7d', '30d'],
+      });
+      const { success, message, data } = res.data || {};
+      if (requestId !== poolUsageRequestRef.current) {
+        return;
+      }
+      if (!success) {
+        setTokenPoolUsageById({});
+        setPoolUsageError(message || t('加载池使用数据失败'));
+        return;
+      }
+      const usageMap = {};
+      for (const item of data?.items || []) {
+        if (item?.token_id) {
+          usageMap[item.token_id] = item;
+        }
+      }
+      setTokenPoolUsageById(usageMap);
+      setPoolUsageError('');
+    } catch (error) {
+      if (requestId !== poolUsageRequestRef.current) {
+        return;
+      }
+      setTokenPoolUsageById({});
+      setPoolUsageError(error?.message || t('加载池使用数据失败'));
+    } finally {
+      if (requestId === poolUsageRequestRef.current) {
+        setPoolUsageLoading(false);
+      }
+    }
+  };
+
+  const syncPageData = async (payload) => {
+    const items = payload.items || [];
+    setTokens(items);
     setTokenCount(payload.total || 0);
     setActivePage(payload.page || 1);
     setPageSize(payload.page_size || pageSize);
     setShowKeys({});
+    await loadTokenPoolUsage(items);
   };
 
   // Load tokens function
@@ -107,7 +165,7 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
     const res = await API.get(`/api/token/?p=${page}&size=${size}`);
     const { success, message, data } = res.data;
     if (success) {
-      syncPageData(data);
+      await syncPageData(data);
     } else {
       showError(message);
     }
@@ -312,7 +370,7 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
     const { success, message, data } = res.data;
     if (success) {
       setSearchMode(true);
-      syncPageData(data);
+      await syncPageData(data);
     } else {
       showError(message);
     }
@@ -449,7 +507,7 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
         }
       })
       .catch(() => {});
-  }, [pageSize]);
+  }, []);
 
   return {
     // Basic state
@@ -479,6 +537,9 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
     setShowKeys,
     resolvedTokenKeys,
     loadingTokenKeys,
+    tokenPoolUsageById,
+    poolUsageLoading,
+    poolUsageError,
 
     // Form state
     formApi,
@@ -505,6 +566,7 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
     batchDeleteTokens,
     batchCopyTokens,
     syncPageData,
+    loadTokenPoolUsage,
 
     // Translation
     t,
