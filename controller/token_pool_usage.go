@@ -370,10 +370,21 @@ func GetTokenPoolUsageSelf(c *gin.Context) {
 		return
 	}
 
-	common.ApiSuccess(c, gin.H{
+	resolved, resErr := model.ResolvePoolForContext(token.UserId, token.Id, token.Group)
+	if resErr != nil && !errors.Is(resErr, gorm.ErrRecordNotFound) {
+		common.ApiError(c, resErr)
+		return
+	}
+	payload := gin.H{
 		"item":            item,
 		"windows":         windows,
 		"data_source":     tokenPoolUsageDataSource,
 		"llm_token_usage": llmUsage,
-	})
+	}
+	if resolved != nil && resolved.Id > 0 {
+		payload["resolved_pool_id"] = resolved.Id
+		payload["resolved_pool_name"] = resolved.Name
+	}
+
+	common.ApiSuccess(c, payload)
 }

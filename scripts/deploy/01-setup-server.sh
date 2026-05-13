@@ -47,7 +47,7 @@ POOL_QUOTA_ENABLED=true
 POOL_ROLLING_WINDOW_ENABLED=true
 
 # --- Native WeChat Pay API v3 (token pool monthly subscription) ---
-# Required only if you use POST /api/user/pool/subscription/wechat/checkout.
+# Required only if you use POST /api/usage/token/pool/subscription/wechat/checkout.
 # Notify URL registered at WeChat must be HTTPS and must match what the API
 # advertises: {ServerAddress or custom callback from admin UI}/api/payment/wechat/notify
 #

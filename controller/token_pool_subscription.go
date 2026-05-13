@@ -19,8 +19,7 @@ import (
 )
 
 type tokenPoolSubscriptionCheckoutRequest struct {
-	TokenId int `json:"token_id"`
-	PoolId  int `json:"pool_id"`
+	PoolId int `json:"pool_id"`
 }
 
 func genTokenPoolSubscriptionTradeNo() string {
@@ -40,33 +39,53 @@ func genTokenPoolSubscriptionTradeNo() string {
 }
 
 // RequestTokenPoolSubscriptionWechatCheckout creates a pending order and returns a WeChat Native pay code_url.
+// Auth: Bearer sk-... (same as relay). Body: {"pool_id": N} where N must match ResolvePoolForContext for this token.
 func RequestTokenPoolSubscriptionWechatCheckout(c *gin.Context) {
 	var req tokenPoolSubscriptionCheckoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.TokenId <= 0 || req.PoolId <= 0 {
-		common.ApiErrorMsg(c, "invalid request: token_id and pool_id required")
+	if err := c.ShouldBindJSON(&req); err != nil || req.PoolId <= 0 {
+		common.ApiErrorMsg(c, "invalid request: pool_id required")
 		return
 	}
+	tokenId := c.GetInt("token_id")
 	userId := c.GetInt("id")
-	if userId <= 0 {
-		common.ApiErrorMsg(c, "invalid user")
+	if tokenId <= 0 || userId <= 0 {
+		common.ApiErrorMsg(c, "invalid token context")
 		return
 	}
 
-	_, err := model.GetTokenByIds(req.TokenId, userId)
+	token, err := model.GetTokenById(tokenId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			common.ApiErrorMsg(c, "token not found or access denied")
+			common.ApiErrorMsg(c, "token not found")
 			return
 		}
 		common.ApiError(c, err)
 		return
 	}
-
-	pool, err := model.GetPoolById(req.PoolId)
-	if err != nil || pool == nil {
-		common.ApiErrorMsg(c, "pool not found")
+	if token.UserId != userId {
+		common.ApiErrorMsg(c, "token not found")
 		return
 	}
+
+	resolved, err := model.ResolvePoolForContext(token.UserId, token.Id, token.Group)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			common.ApiErrorMsg(c, "no resolved pool for this token")
+			return
+		}
+		common.ApiError(c, err)
+		return
+	}
+	if resolved == nil || resolved.Id <= 0 {
+		common.ApiErrorMsg(c, "no resolved pool for this token")
+		return
+	}
+	if req.PoolId != resolved.Id {
+		common.ApiErrorMsg(c, "pool_id must match the resolved pool for this token (see GET /api/usage/token/pool)")
+		return
+	}
+
+	pool := resolved
 	if !model.PoolRequiresPaidSubscription(pool) {
 		common.ApiErrorMsg(c, "pool has no monthly subscription price")
 		return
@@ -106,8 +125,8 @@ func RequestTokenPoolSubscriptionWechatCheckout(c *gin.Context) {
 	}
 	order := &model.TokenPoolSubscriptionOrder{
 		UserId:               userId,
-		TokenId:              req.TokenId,
-		PoolId:               req.PoolId,
+		TokenId:              tokenId,
+		PoolId:               resolved.Id,
 		AmountCny:            pool.MonthlyPriceCny,
 		AmountTotalFen:       amountFen,
 		Currency:             cur,

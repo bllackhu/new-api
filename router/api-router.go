@@ -94,7 +94,6 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/creem/pay", middleware.CriticalRateLimit(), controller.RequestCreemPay)
 				selfRoute.POST("/waffo/amount", controller.RequestWaffoAmount)
 				selfRoute.POST("/waffo/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPay)
-				selfRoute.POST("/pool/subscription/wechat/checkout", middleware.CriticalRateLimit(), controller.RequestTokenPoolSubscriptionWechatCheckout)
 				//selfRoute.POST("/waffo-pancake/amount", controller.RequestWaffoPancakeAmount)
 				//selfRoute.POST("/waffo-pancake/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPancakePay)
 				selfRoute.POST("/aff_transfer", controller.TransferAffQuota)
@@ -270,6 +269,11 @@ func SetApiRouter(router *gin.Engine) {
 		usageRoute := apiRouter.Group("/usage")
 		usageRoute.Use(middleware.CORS(), middleware.CriticalRateLimit())
 		{
+			usageTokenCheckout := usageRoute.Group("/token")
+			usageTokenCheckout.Use(middleware.TokenAuth(), middleware.CriticalRateLimit())
+			{
+				usageTokenCheckout.POST("/pool/subscription/wechat/checkout", controller.RequestTokenPoolSubscriptionWechatCheckout)
+			}
 			tokenUsageRoute := usageRoute.Group("/token")
 			tokenUsageRoute.Use(middleware.TokenAuthReadOnly())
 			{

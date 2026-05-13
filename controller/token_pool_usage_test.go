@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestBuildTokenPoolUsageItem_NoResolvedPool(t *testing.T) {
@@ -123,7 +125,16 @@ func TestNormalizeTokenPoolUsageWindows_Defaults(t *testing.T) {
 
 func TestGetTokenPoolUsageSelf_DefaultWindows(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
+	migratePoolTablesForTokenUsageTests(t, db)
 	token := seedToken(t, db, 88, "agent-token", "agent-token-key")
+	pool := &model.Pool{Name: "resolved-for-usage-self", Status: model.PoolStatusEnabled}
+	require.NoError(t, db.Create(pool).Error)
+	require.NoError(t, db.Create(&model.PoolBinding{
+		BindingType:  model.PoolBindingTypeToken,
+		BindingValue: strconv.Itoa(token.Id),
+		PoolId:       pool.Id,
+		Enabled:      true,
+	}).Error)
 
 	originalBuilder := buildTokenPoolUsageItemFunc
 	t.Cleanup(func() {
@@ -164,9 +175,11 @@ func TestGetTokenPoolUsageSelf_DefaultWindows(t *testing.T) {
 	require.Empty(t, response.Message)
 
 	var payload struct {
-		Item          TokenPoolUsageItem `json:"item"`
-		Windows       []string           `json:"windows"`
-		DataSource    string             `json:"data_source"`
+		Item             TokenPoolUsageItem `json:"item"`
+		ResolvedPoolId   int                `json:"resolved_pool_id"`
+		ResolvedPoolName string             `json:"resolved_pool_name"`
+		Windows          []string           `json:"windows"`
+		DataSource       string             `json:"data_source"`
 		LlmTokenUsage struct {
 			DataSource string                              `json:"data_source"`
 			ByWindow   map[string]*TokenPoolLLMTokenWindow `json:"by_window"`
@@ -183,6 +196,8 @@ func TestGetTokenPoolUsageSelf_DefaultWindows(t *testing.T) {
 	require.Equal(t, tokenPoolUsageDataSource, payload.DataSource)
 	require.Equal(t, token.Id, payload.Item.TokenId)
 	require.Equal(t, "agent-token", payload.Item.TokenName)
+	require.Equal(t, pool.Id, payload.ResolvedPoolId)
+	require.Equal(t, pool.Name, payload.ResolvedPoolName)
 	require.Contains(t, payload.Item.Usage, "5h")
 	require.NotNil(t, payload.Item.Usage["5h"].Count)
 	require.EqualValues(t, 3, *payload.Item.Usage["5h"].Count)
@@ -193,6 +208,7 @@ func TestGetTokenPoolUsageSelf_DefaultWindows(t *testing.T) {
 
 func TestGetTokenPoolUsageSelf_LLMTokenAggregates(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
+	migratePoolTablesForTokenUsageTests(t, db)
 	token := seedToken(t, db, 91, "tok-llm", "tok-llm-key")
 
 	now := time.Now().Unix()
@@ -275,4 +291,9 @@ func TestGetTokenPoolUsageSelf_LLMTokenAggregates(t *testing.T) {
 
 func countPtr(v int64) *int64 {
 	return &v
+}
+
+func migratePoolTablesForTokenUsageTests(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.AutoMigrate(&model.Pool{}, &model.PoolBinding{}))
 }
