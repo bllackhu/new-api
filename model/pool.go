@@ -49,6 +49,9 @@ type PoolChannel struct {
 	Enabled   bool  `json:"enabled" gorm:"default:true;index"`
 	CreatedAt int64 `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt int64 `json:"updated_at" gorm:"bigint"`
+	// Populated for API list responses only (not persisted).
+	PoolName    string `json:"pool_name,omitempty" gorm:"-"`
+	ChannelName string `json:"channel_name,omitempty" gorm:"-"`
 }
 
 type PoolQuotaPolicy struct {
@@ -61,6 +64,8 @@ type PoolQuotaPolicy struct {
 	Enabled       bool   `json:"enabled" gorm:"default:true;index"`
 	CreatedAt     int64  `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt     int64  `json:"updated_at" gorm:"bigint"`
+	// Populated for API list responses only (not persisted).
+	PoolName string `json:"pool_name,omitempty" gorm:"-"`
 }
 
 type PoolBinding struct {
@@ -329,6 +334,96 @@ func DeletePool(poolId int) error {
 	return DB.Where("id = ?", poolId).Delete(&Pool{}).Error
 }
 
+func enrichPoolChannelsWithNames(items []*PoolChannel) error {
+	if len(items) == 0 {
+		return nil
+	}
+	poolSeen := make(map[int]struct{})
+	channelSeen := make(map[int]struct{})
+	poolIDs := make([]int, 0)
+	channelIDs := make([]int, 0)
+	for _, it := range items {
+		if it == nil {
+			continue
+		}
+		if it.PoolId > 0 {
+			if _, ok := poolSeen[it.PoolId]; !ok {
+				poolSeen[it.PoolId] = struct{}{}
+				poolIDs = append(poolIDs, it.PoolId)
+			}
+		}
+		if it.ChannelId > 0 {
+			if _, ok := channelSeen[it.ChannelId]; !ok {
+				channelSeen[it.ChannelId] = struct{}{}
+				channelIDs = append(channelIDs, it.ChannelId)
+			}
+		}
+	}
+	poolNames := make(map[int]string, len(poolIDs))
+	if len(poolIDs) > 0 {
+		var rows []Pool
+		if err := DB.Where("id IN ?", poolIDs).Select("id", "name").Find(&rows).Error; err != nil {
+			return err
+		}
+		for i := range rows {
+			poolNames[rows[i].Id] = rows[i].Name
+		}
+	}
+	channelNames := make(map[int]string, len(channelIDs))
+	if len(channelIDs) > 0 {
+		var crows []Channel
+		if err := DB.Where("id IN ?", channelIDs).Select("id", "name").Find(&crows).Error; err != nil {
+			return err
+		}
+		for i := range crows {
+			channelNames[crows[i].Id] = crows[i].Name
+		}
+	}
+	for _, it := range items {
+		if it == nil {
+			continue
+		}
+		it.PoolName = poolNames[it.PoolId]
+		it.ChannelName = channelNames[it.ChannelId]
+	}
+	return nil
+}
+
+func enrichPoolPoliciesWithPoolNames(items []*PoolQuotaPolicy) error {
+	if len(items) == 0 {
+		return nil
+	}
+	seen := make(map[int]struct{})
+	poolIDs := make([]int, 0)
+	for _, it := range items {
+		if it == nil || it.PoolId <= 0 {
+			continue
+		}
+		if _, ok := seen[it.PoolId]; !ok {
+			seen[it.PoolId] = struct{}{}
+			poolIDs = append(poolIDs, it.PoolId)
+		}
+	}
+	if len(poolIDs) == 0 {
+		return nil
+	}
+	var rows []Pool
+	if err := DB.Where("id IN ?", poolIDs).Select("id", "name").Find(&rows).Error; err != nil {
+		return err
+	}
+	poolNames := make(map[int]string, len(rows))
+	for i := range rows {
+		poolNames[rows[i].Id] = rows[i].Name
+	}
+	for _, it := range items {
+		if it == nil {
+			continue
+		}
+		it.PoolName = poolNames[it.PoolId]
+	}
+	return nil
+}
+
 func GetPoolChannels(poolId int, offset, limit int) ([]*PoolChannel, int64, error) {
 	items := make([]*PoolChannel, 0)
 	total := int64(0)
@@ -343,6 +438,9 @@ func GetPoolChannels(poolId int, offset, limit int) ([]*PoolChannel, int64, erro
 		query = query.Limit(limit).Offset(offset)
 	}
 	if err := query.Order("id DESC").Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := enrichPoolChannelsWithNames(items); err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
@@ -499,6 +597,9 @@ func GetPoolPolicies(poolId int, metric, scopeType string, offset, limit int) ([
 		query = query.Limit(limit).Offset(offset)
 	}
 	if err := query.Order("window_seconds ASC, id DESC").Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := enrichPoolPoliciesWithPoolNames(items); err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil

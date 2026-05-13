@@ -760,11 +760,23 @@ export const usePoolsData = () => {
   const channelColumns = useMemo(
     () => [
       { title: 'ID', dataIndex: 'id', width: 80 },
-      { title: 'Pool ID', dataIndex: 'pool_id' },
-      { title: 'Channel ID', dataIndex: 'channel_id' },
-      { title: 'Weight', dataIndex: 'weight' },
-      { title: 'Priority', dataIndex: 'priority' },
-      { title: 'Enabled', dataIndex: 'enabled', render: boolTag },
+      { title: 'Pool ID', dataIndex: 'pool_id', width: 88 },
+      {
+        title: 'Pool name',
+        dataIndex: 'pool_name',
+        ellipsis: true,
+        render: (v) => v || '—',
+      },
+      { title: 'Channel ID', dataIndex: 'channel_id', width: 100 },
+      {
+        title: 'Channel name',
+        dataIndex: 'channel_name',
+        ellipsis: true,
+        render: (v) => v || '—',
+      },
+      { title: 'Weight', dataIndex: 'weight', width: 88 },
+      { title: 'Priority', dataIndex: 'priority', width: 96 },
+      { title: 'Enabled', dataIndex: 'enabled', width: 96, render: boolTag },
       {
         title: 'Actions',
         dataIndex: 'operate',
@@ -803,12 +815,18 @@ export const usePoolsData = () => {
   const policyColumns = useMemo(
     () => [
       { title: 'ID', dataIndex: 'id', width: 80 },
-      { title: 'Pool ID', dataIndex: 'pool_id' },
-      { title: 'Metric', dataIndex: 'metric' },
-      { title: 'Scope', dataIndex: 'scope_type' },
-      { title: 'Window(s)', dataIndex: 'window_seconds' },
-      { title: 'Limit', dataIndex: 'limit_count' },
-      { title: 'Enabled', dataIndex: 'enabled', render: boolTag },
+      { title: 'Pool ID', dataIndex: 'pool_id', width: 88 },
+      {
+        title: 'Pool name',
+        dataIndex: 'pool_name',
+        ellipsis: true,
+        render: (v) => v || '—',
+      },
+      { title: 'Metric', dataIndex: 'metric', width: 120 },
+      { title: 'Scope', dataIndex: 'scope_type', width: 88 },
+      { title: 'Window(s)', dataIndex: 'window_seconds', width: 110 },
+      { title: 'Limit', dataIndex: 'limit_count', width: 88 },
+      { title: 'Enabled', dataIndex: 'enabled', width: 96, render: boolTag },
       {
         title: 'Actions',
         dataIndex: 'operate',
