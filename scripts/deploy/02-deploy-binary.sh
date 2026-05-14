@@ -1,6 +1,11 @@
 #!/bin/bash
 # Install or replace the Go binary under /opt/<APP_NAME>/bin/new-api.
 # Run as root. Adjust APP_NAME if you changed it in 01-setup-server.sh.
+#
+# The binary must be a Linux ELF for this host's CPU (usually linux/amd64).
+# If you built on macOS or Windows without cross-compile, you will get
+# "cannot execute binary file: Exec format error" — build with:
+#   ./scripts/build/build-linux.sh
 set -euo pipefail
 
 APP_NAME='koooyooo-newapi'
